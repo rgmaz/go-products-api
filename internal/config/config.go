@@ -2,7 +2,7 @@ package config
 
 const (
 	jwtSecretEnv = "JWT_SECRET"
-	jwtExpiryEnv = "JTW_EXPIRY_MINUTES"
+	jwtExpiryEnv = "JWT_EXPIRY_MINUTES"
 
 	dsnEnv = "DATABASE_URL"
 
