@@ -68,3 +68,31 @@ func (r *pgUserRepository) FindByEmail(ctx context.Context, email string) (*mode
 
 	return &user, nil
 }
+
+func (r *pgUserRepository) FindByID(ctx context.Context, id int64) (*models.User, error) {
+	query := `
+	SELECT id, email, password, role, created_at 
+	FROM users 
+	WHERE id = $1
+	`
+
+	var user models.User
+	err := r.QueryRow(ctx, query, id).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password,
+		&user.Role,
+		&user.CreatedAt,
+	)
+	if err != nil {
+		// Not found is not considered an error at this layer
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("userRepo.FindByEmail: %w", err)
+	}
+
+	return &user, nil
+
+}
