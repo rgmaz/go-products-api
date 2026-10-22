@@ -177,5 +177,12 @@ func (r *pgProductRepository) Update(ctx context.Context, id int64, req *models.
 }
 
 func (r *pgProductRepository) Delete(ctx context.Context, id int64) error {
+	result, err := r.Exec(ctx, `DELETE FROM products WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("productRepo.Delete: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("productRepo.Delete: no product found with id %d", id)
+	}
 	return nil
 }
