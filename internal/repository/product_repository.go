@@ -2,8 +2,10 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rgamz/go-products-api/internal/models"
 )
@@ -90,7 +92,30 @@ func (r *pgProductRepository) FindAll(ctx context.Context, page, limit int) ([]*
 }
 
 func (r *pgProductRepository) FindByID(ctx context.Context, id int64) (*models.Product, error) {
-	return nil, nil
+	query := `
+	SELECT id, user_id, name, description, price, stock, created_at, updated_at 
+	FROM products 
+	WHERE id = $1
+	`
+
+	var p models.Product
+	err := r.QueryRow(ctx, query, id).Scan(
+		&p.ID,
+		&p.UserID,
+		&p.Name,
+		&p.Description,
+		&p.Price,
+		&p.Stock,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("productRepo.FindByID: %w", err)
+	}
+	return &p, nil
 }
 
 func (r *pgProductRepository) Update(ctx context.Context, id int64, req *models.UpdateProductRequest) (*models.Product, error) {
