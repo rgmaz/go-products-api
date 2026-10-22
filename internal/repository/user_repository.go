@@ -1,4 +1,4 @@
-package repostory
+package repository
 
 import (
 	"context"
@@ -19,6 +19,11 @@ type UserRepository interface {
 
 type pgUserRepository struct {
 	*pgxpool.Pool
+}
+
+// NewUserReposiroty creates a new PostgreSQL-backed UserRepository
+func NewUserReposiroty(pool *pgxpool.Pool) UserRepository {
+	return &pgUserRepository{pool}
 }
 
 func (r *pgUserRepository) Create(ctx context.Context, email, hashedPassword string) (*models.User, error) {
