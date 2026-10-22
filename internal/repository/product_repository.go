@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rgamz/go-products-api/internal/models"
@@ -26,7 +27,27 @@ func NewProductReposiroty(pool *pgxpool.Pool) ProductRepository {
 }
 
 func (r *pgProductRepository) Create(ctx context.Context, userID int64, req *models.CreateProductRequest) (*models.Product, error) {
-	return nil, nil
+	query := `
+        INSERT INTO products (user_id, name, description, price, stock)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, user_id, name, description, price, stock, created_at, updated_at
+		`
+
+	var p models.Product
+	err := r.QueryRow(ctx, query, userID, req.Name, req.Description, req.Price, req.Stock).Scan(
+		&p.ID,
+		&p.UserID,
+		&p.Name,
+		&p.Description,
+		&p.Price,
+		&p.Stock,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("productRepo.Create: %w", err)
+	}
+	return &p, nil
 }
 
 func (r *pgProductRepository) FindAll(ctx context.Context, page, limit int) ([]*models.Product, int64, error) {
