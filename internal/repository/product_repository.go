@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -119,7 +120,60 @@ func (r *pgProductRepository) FindByID(ctx context.Context, id int64) (*models.P
 }
 
 func (r *pgProductRepository) Update(ctx context.Context, id int64, req *models.UpdateProductRequest) (*models.Product, error) {
-	return nil, nil
+	// Build the SET clause dynamically
+	setClauses := []string{}
+	args := []any{}
+	argIdx := 1
+
+	if req.Name != nil {
+		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIdx))
+		args = append(args, *req.Name)
+		argIdx++
+	}
+	if req.Description != nil {
+		setClauses = append(setClauses, fmt.Sprintf("description = $%d", argIdx))
+		args = append(args, *req.Description)
+		argIdx++
+	}
+	if req.Price != nil {
+		setClauses = append(setClauses, fmt.Sprintf("price = $%d", argIdx))
+		args = append(args, *req.Price)
+		argIdx++
+	}
+	if req.Stock != nil {
+		setClauses = append(setClauses, fmt.Sprintf("stock = $%d", argIdx))
+		args = append(args, *req.Stock)
+		argIdx++
+	}
+	setClauses = append(setClauses, "updated_at = NOW()")
+	args = append(args, id)
+
+	query := fmt.Sprintf(`
+        UPDATE products
+        SET %s
+        WHERE id = $%d
+        RETURNING id, user_id, name, description, price, stock, created_at, updated_at`,
+		strings.Join(setClauses, ", "), argIdx,
+	)
+
+	var p models.Product
+	err := r.QueryRow(ctx, query, args...).Scan(
+		&p.ID,
+		&p.UserID,
+		&p.Name,
+		&p.Description,
+		&p.Price,
+		&p.Stock,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("productRepo.Update: %w", err)
+	}
+	return &p, nil
 }
 
 func (r *pgProductRepository) Delete(ctx context.Context, id int64) error {
