@@ -51,7 +51,42 @@ func (r *pgProductRepository) Create(ctx context.Context, userID int64, req *mod
 }
 
 func (r *pgProductRepository) FindAll(ctx context.Context, page, limit int) ([]*models.Product, int64, error) {
-	return nil, 0, nil
+	query := `
+        WITH product_count AS (SELECT COUNT(*) FROM products)
+        SELECT id, user_id, name, description, price, stock, created_at, updated_at,
+               (SELECT * FROM product_count)
+        FROM products
+        ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2
+		`
+
+	offset := (page - 1) * limit
+	rows, err := r.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("productRepo.FindAll: %w", err)
+	}
+	defer rows.Close()
+
+	var products []*models.Product
+	var total int64
+	for rows.Next() {
+		var p models.Product
+		if err := rows.Scan(
+			&p.ID,
+			&p.UserID,
+			&p.Name,
+			&p.Description,
+			&p.Price,
+			&p.Stock,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+			&total,
+		); err != nil {
+			return nil, 0, fmt.Errorf("productRepo.FindAll scan: %w", err)
+		}
+		products = append(products, &p)
+	}
+	return products, total, rows.Err()
 }
 
 func (r *pgProductRepository) FindByID(ctx context.Context, id int64) (*models.Product, error) {
