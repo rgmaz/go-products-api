@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -42,6 +43,40 @@ func (m *Manager) Generate(userID int64, email, role string) (string, error) {
 	}
 
 	return signedToken, nil
+}
+
+// Validate parses and validates a JWT string, returning the embedded claims.
+func (m *Manager) Validate(tokenstr string) (*models.JWTClaims, error) {
+	token, err := jwt.ParseWithClaims(
+		tokenstr,
+		&jwtCustomClaims{},
+		func(t *jwt.Token) (any, error) {
+			// Verify signing method to prevent algorithm substitution attacks
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf(
+					"auth: unexpected signing method %v",
+					t.Header["alg"],
+				)
+			}
+
+			return m.secretKey, nil
+		},
+	)
+
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, fmt.Errorf("auth: token has expired")
+		}
+
+		return nil, fmt.Errorf("auth: invalid token: %w", err)
+	}
+
+	claims, ok := token.Claims.(*jwtCustomClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("auth: token claims are invalid")
+	}
+
+	return &claims.JWTClaims, nil
 }
 
 // NewManager creates a new JWT Manager.
