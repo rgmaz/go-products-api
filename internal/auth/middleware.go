@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/rgamz/go-products-api/internal/models"
 	"github.com/rgamz/go-products-api/internal/utils"
 )
 
@@ -44,5 +45,31 @@ func (m *Manager) Middleware(next http.Handler) http.Handler {
 		// Inject valid claims into the request context
 		ctx := context.WithValue(r.Context(), claimsContextKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// ClaimsFromContext retrieves the validated JWT claims from the request context.
+//
+// Returns nil if no present (i.e., called on an unprotected route).
+func ClaimsFromContext(ctx context.Context) *models.JWTClaims {
+	claims, _ := ctx.Value(claimsContextKey).(*models.JWTClaims)
+	return claims
+}
+
+// RequireRole returns a middleware that enforces a specific user role.
+func (m *Manager) RequireRole(role string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims := ClaimsFromContext(r.Context())
+		if claims == nil || claims.Role != role {
+			utils.WriteError(
+				w,
+				http.StatusForbidden,
+				"you do not have permission to perform this action",
+			)
+
+			return
+		}
+
+		next.ServeHTTP(w, r)
 	})
 }
